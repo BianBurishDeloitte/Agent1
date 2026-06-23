@@ -3,9 +3,9 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-# ── Anthropic ─────────────────────────────────────────────────────────────────
-ANTHROPIC_API_KEY: str = os.getenv("ANTHROPIC_API_KEY", "")
-MODEL_NAME: str = os.getenv("MODEL_NAME", "claude-haiku-4-5-20251001")
+# ── Google Gemini ─────────────────────────────────────────────────────────────
+GOOGLE_API_KEY: str = os.getenv("GOOGLE_API_KEY", "")
+MODEL_NAME: str = os.getenv("MODEL_NAME", "gemini-2.5-flash")
 TEMPERATURE: float = float(os.getenv("TEMPERATURE", "0"))
 
 # ── LangSmith ─────────────────────────────────────────────────────────────────
@@ -19,8 +19,8 @@ if LANGSMITH_TRACING and LANGSMITH_API_KEY:
     os.environ["LANGCHAIN_PROJECT"] = LANGSMITH_PROJECT
 
 # ── Validation ────────────────────────────────────────────────────────────────
-if not ANTHROPIC_API_KEY:
+if not GOOGLE_API_KEY:
     raise EnvironmentError(
-        "ANTHROPIC_API_KEY is not set. Copy .env.example → .env and add your key "
-        "from https://console.anthropic.com/settings/keys"
+        "GOOGLE_API_KEY is not set. Get a free key at https://aistudio.google.com "
+        "then add it to your .env file."
     )

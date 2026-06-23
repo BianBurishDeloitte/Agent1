@@ -1,9 +1,9 @@
 from langchain.agents import AgentExecutor, create_react_agent
-from langchain_anthropic import ChatAnthropic
+from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.prompts import PromptTemplate
 
 from config import (
-    ANTHROPIC_API_KEY,
+    GOOGLE_API_KEY,
     LANGSMITH_PROJECT,
     LANGSMITH_TRACING,
     MODEL_NAME,
@@ -35,13 +35,11 @@ Thought:{agent_scratchpad}"""
 
 
 def create_agent() -> AgentExecutor:
-    """Build and return a configured ReAct AgentExecutor backed by Claude."""
-    llm = ChatAnthropic(
-        api_key=ANTHROPIC_API_KEY,
+    """Build and return a configured ReAct AgentExecutor backed by Gemini."""
+    llm = ChatGoogleGenerativeAI(
         model=MODEL_NAME,
+        google_api_key=GOOGLE_API_KEY,
         temperature=TEMPERATURE,
-        max_tokens=4096,
-        metadata={"project": LANGSMITH_PROJECT} if LANGSMITH_TRACING else {},
     )
 
     tools = get_tools()
@@ -54,5 +52,5 @@ def create_agent() -> AgentExecutor:
         verbose=False,
         handle_parsing_errors=True,
         max_iterations=10,
-        tags=["react-agent", "claude", "demo"],
+        tags=["react-agent", "gemini", "demo"],
     )
