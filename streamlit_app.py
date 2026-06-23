@@ -1,51 +1,10 @@
+import json
+
 import streamlit as st
-from langchain_core.callbacks.base import BaseCallbackHandler
+from langchain_core.messages import AIMessage, ToolMessage
 
 from agent import create_agent
 from config import LANGSMITH_PROJECT, LANGSMITH_TRACING, MODEL_NAME
-
-# ---------------------------------------------------------------------------
-# Streamlit-specific callback handler
-# ---------------------------------------------------------------------------
-
-
-class StreamlitStepLogger(BaseCallbackHandler):
-    """Write each ReAct step into a Streamlit container in real time."""
-
-    def __init__(self, container) -> None:
-        super().__init__()
-        self._container = container
-        self._step = 0
-
-    def _thought(self, log: str) -> str:
-        log = log.strip()
-        raw = log.split("\nAction:")[0] if "Action:" in log else log
-        return raw.replace("Thought:", "").strip()
-
-    def on_agent_action(self, action, **kwargs) -> None:
-        self._step += 1
-        thought = self._thought(action.log)
-        with self._container:
-            st.markdown(f"#### Step {self._step}")
-            if thought:
-                st.info(f"💭 **Thought:** {thought}")
-            st.warning(
-                f"⚙️ **Action:** `{action.tool}`\n\n"
-                f"**Input:** `{action.tool_input}`"
-            )
-
-    def on_tool_end(self, output, **kwargs) -> None:
-        with self._container:
-            st.success(f"👁 **Observation:**\n\n{output}")
-
-    def on_tool_error(self, error, **kwargs) -> None:
-        with self._container:
-            st.error(f"❌ **Tool error:** {error}")
-
-
-# ---------------------------------------------------------------------------
-# Agent (cached — created once per Streamlit session)
-# ---------------------------------------------------------------------------
 
 
 @st.cache_resource(show_spinner="Loading agent…")
@@ -53,65 +12,73 @@ def get_agent():
     return create_agent()
 
 
-# ---------------------------------------------------------------------------
-# Streamlit UI
-# ---------------------------------------------------------------------------
+def _stream_agent(agent, prompt: str, steps_container) -> str:
+    """Stream agent steps into the Streamlit container; return the final answer."""
+    step = 0
+    final_answer = ""
+
+    for chunk in agent.stream(
+        {"messages": [("human", prompt)]},
+        stream_mode="updates",
+    ):
+        for node_name, node_output in chunk.items():
+            for msg in node_output.get("messages", []):
+
+                if isinstance(msg, AIMessage) and msg.tool_calls:
+                    for tc in msg.tool_calls:
+                        step += 1
+                        args = (json.dumps(tc["args"], ensure_ascii=False)
+                                if isinstance(tc["args"], dict) else str(tc["args"]))
+                        with steps_container:
+                            st.markdown(f"**Step {step}**")
+                            st.warning(f"⚙️ **Action:** `{tc['name']}`\n\n**Input:** `{args}`")
+
+                elif isinstance(msg, ToolMessage):
+                    with steps_container:
+                        st.success(f"👁 **Observation:**\n\n{msg.content}")
+
+                elif isinstance(msg, AIMessage) and msg.content and not msg.tool_calls:
+                    final_answer = msg.content
+
+    return final_answer or "No response generated."
 
 
 def main() -> None:
-    st.set_page_config(
-        page_title="LangChain ReAct Agent",
-        page_icon="🤖",
-        layout="wide",
-    )
+    st.set_page_config(page_title="Agent Team Meeting", page_icon="🤖", layout="wide")
 
-    # ── Sidebar ────────────────────────────────────────────────────────────
     with st.sidebar:
-        st.title("🤖 ReAct Agent")
-        st.caption("Powered by LangChain + OpenAI")
-
+        st.title("🤖 Agent Team Meeting")
+        st.caption("LangChain + Gemini 2.5 Flash")
         st.divider()
         st.markdown("**Model**")
         st.code(MODEL_NAME, language=None)
-
         st.divider()
-        st.markdown("**LangSmith tracing**")
+        st.markdown("**LangSmith**")
         if LANGSMITH_TRACING:
-            st.success(f"● ON — project: `{LANGSMITH_PROJECT}`")
+            st.success(f"● ON — `{LANGSMITH_PROJECT}`")
             st.markdown("[Open LangSmith ↗](https://smith.langchain.com)")
         else:
-            st.warning("○ OFF — add keys to .env to enable")
-
+            st.warning("○ OFF")
         st.divider()
-        st.markdown("**Available tools**")
-        st.markdown("- 🔢 **Calculator** — arithmetic expressions")
-        st.markdown("- 🌤 **Weather** — city weather lookup")
-        st.markdown("- 🔍 **Search** — general knowledge")
-
+        st.markdown("**Tools**")
+        st.markdown("- 🔢 Calculator\n- 🌤 Weather\n- 🔍 Search")
         st.divider()
-        st.markdown("**Try these prompts**")
+        st.markdown("**Try these**")
         for ex in [
             "What is 1337 × 42?",
             "Weather in Tokyo?",
             "Tell me about LangChain",
-            "What is 2 ** 10 - 24?",
-            "Weather in Dubai?",
-            "Search for artificial intelligence",
-            "Weather in Tokyo, and 37°C in °F?",
+            "What is 25% of 840?",
+            "Weather in Dubai and 37°C in °F?",
         ]:
             st.code(ex, language=None)
-
         st.divider()
-        if st.button("🗑 Clear chat history", use_container_width=True):
+        if st.button("🗑 Clear history", use_container_width=True):
             st.session_state.messages = []
             st.rerun()
 
-    # ── Main chat area ─────────────────────────────────────────────────────
-    st.title("LangChain ReAct Agent Demo")
-    st.caption(
-        "Live agent reasoning: Thought → Action → Observation → Final Answer"
-        + (f"  •  LangSmith project: **{LANGSMITH_PROJECT}**" if LANGSMITH_TRACING else "")
-    )
+    st.title("Agent Team Meeting — ReAct Agent Demo")
+    st.caption("Powered by LangChain + Google Gemini 2.5 Flash + LangSmith")
 
     if "messages" not in st.session_state:
         st.session_state.messages = []
@@ -127,19 +94,12 @@ def main() -> None:
 
         with st.chat_message("assistant"):
             steps_expander = st.expander("🧠 Agent reasoning", expanded=True)
-            logger = StreamlitStepLogger(steps_expander)
             agent = get_agent()
-
             with st.spinner("Thinking…"):
                 try:
-                    result = agent.invoke(
-                        {"input": prompt},
-                        config={"callbacks": [logger]},
-                    )
-                    answer = result.get("output", "No response generated.")
+                    answer = _stream_agent(agent, prompt, steps_expander)
                 except Exception as exc:
                     answer = f"⚠️ Error: {exc}"
-
             st.markdown(answer)
             st.session_state.messages.append({"role": "assistant", "content": answer})
 
