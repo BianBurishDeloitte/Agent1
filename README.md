@@ -1,4 +1,4 @@
-# Agent1 — LangChain ReAct Agent Demo
+# Agent Team Meeting — LangChain ReAct Agent Demo
 
 A production-quality demo agent built with **LangChain 0.3**, **OpenAI**, and **Rich** for structured, colour-coded terminal output — or optionally a **Streamlit** web UI.
 
