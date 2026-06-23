@@ -1,0 +1,16 @@
+# Environment & secrets — never commit
+.env
+
+# Virtual environment
+.venv/
+
+# Python cache
+__pycache__/
+*.py[cod]
+*.pyo
+
+# VS Code
+.vscode/
+
+# Streamlit cache
+.streamlit/
