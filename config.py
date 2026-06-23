@@ -10,7 +10,7 @@ TEMPERATURE: float = float(os.getenv("TEMPERATURE", "0"))
 
 # ── LangSmith ─────────────────────────────────────────────────────────────────
 LANGSMITH_API_KEY: str = os.getenv("LANGCHAIN_API_KEY", "")
-LANGSMITH_PROJECT: str = os.getenv("LANGCHAIN_PROJECT", "agent-team-meeting")
+LANGSMITH_PROJECT: str = os.getenv("LANGCHAIN_PROJECT", "Agent1")
 LANGSMITH_TRACING: bool = os.getenv("LANGCHAIN_TRACING_V2", "false").lower() == "true"
 
 if LANGSMITH_TRACING and LANGSMITH_API_KEY:
